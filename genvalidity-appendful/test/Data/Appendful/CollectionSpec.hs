@@ -10,18 +10,15 @@ module Data.Appendful.CollectionSpec
 where
 
 import Control.Monad.State
+import Data.Appendful.Collection
 import Data.GenValidity.Appendful.Collection ()
 import Data.GenValidity.UUID ()
 import Data.List
 import qualified Data.Map.Strict as M
-import Data.Appendful.Collection
-import Data.Ord
-import qualified Data.Set as S
 import Data.UUID
 import GHC.Generics (Generic)
 import System.Random
 import Test.Hspec
-import Test.QuickCheck
 import Test.Validity
 import Test.Validity.Aeson
 
@@ -48,37 +45,9 @@ spec = do
           let store' = addItemToClientStore added store
           let size2 = storeSize store'
           size2 `shouldBe` (size1 + 1)
-    specify "deleting an unsynced item after adding it leaves the store with the original size"
-      $ forAllValid
-      $ \store ->
-        forAllValid $ \added ->
-          let size1 = storeSize (store :: ClientStore Int Int Int)
-              store' = addItemToClientStore added store
-           in case sortOn (Down . fst) $ M.toList (clientStoreAdded store') of
-                [] -> expectationFailure "Expected a nonempty list"
-                (i, _) : _ ->
-                  let store'' = deleteUnsyncedFromClientStore i store'
-                      size2 = storeSize store''
-                   in size2 `shouldBe` size1
-    specify "deleting a synced item after adding it leaves the store with the original size"
-      $ forAllValid
-      $ \store ->
-        forAll (genValid `suchThat` (\uuid -> not $ M.member uuid $ clientStoreSynced store)) $ \uuid ->
-          forAllValid $ \synced ->
-            let size1 = storeSize (store :: ClientStore Int Int Int)
-                store' = store {clientStoreSynced = M.insert uuid synced $ clientStoreSynced store}
-                store'' = deleteSyncedFromClientStore uuid store'
-                size2 = storeSize store''
-             in size2 `shouldBe` size1
   describe "addItemToClientStore"
     $ it "produces valid stores"
     $ producesValidsOnValids2 (addItemToClientStore @Int @Int @Int)
-  describe "deleteUnsyncedFromClientStore"
-    $ it "produces valid stores"
-    $ producesValidsOnValids2 (deleteUnsyncedFromClientStore @Int @Int @Int)
-  describe "deleteSyncedFromClientStore"
-    $ it "produces valid stores"
-    $ producesValidsOnValids2 (deleteSyncedFromClientStore @Int @Int @Int)
   describe "emptySyncRequest"
     $ it "is valid"
     $ shouldBeValid (emptySyncRequest @Int @Int @Int)
@@ -96,13 +65,6 @@ spec = do
                 resp = emptySyncResponse {syncResponseClientAdded = M.singleton cid (u :: Int)}
                 cstore2 = mergeSyncResponse cstore1 resp
             clientStoreSynced cstore2 `shouldBe` M.singleton u a
-    it "deletes items that the server instructed to be deleted"
-      $ forAllValid
-      $ \cs ->
-        forAllValid $ \sr -> do
-          let cs' = mergeSyncResponse @ClientId @Int @Int cs sr
-          clientStoreDeleted cs'
-            `shouldBe` (clientStoreDeleted cs `S.difference` syncResponseClientDeleted sr)
   describe "processServerSync"
     $ describe "deterministic UUIDs"
     $ serverSyncSpec @Int evalDM
@@ -219,72 +181,6 @@ serverSyncSpec eval func = do
                 -- Client A and Client B now have the same store
                 liftIO $ cAstore2 `shouldBe` cBstore2
               _ -> liftIO $ expectationFailure "Should have found exactly one added item."
-      it "succesfully syncs a deletion across to a second client"
-        $ forAllValid
-        $ \uuid ->
-          forAllValid $ \i ->
-            eval $ do
-              let cAstore1 = emptyClientStore {clientStoreSynced = M.singleton uuid i}
-              -- Client A has a synced item.
-              -- Client B had synced that same item, but has since deleted it.
-              let cBstore1 = emptyClientStore {clientStoreDeleted = S.singleton uuid}
-              -- The server still has the undeleted item
-              let sstore1 = ServerStore {serverStoreItems = M.singleton uuid i}
-              -- Client B makes sync request 1
-              let req1 = makeSyncRequest cBstore1
-              -- The server processes sync request 1
-              (resp1, sstore2) <- func sstore1 req1
-              liftIO $ do
-                resp1 `shouldBe` emptySyncResponse {syncResponseClientDeleted = S.singleton uuid}
-                sstore2 `shouldBe` emptyServerStore
-              -- Client B merges the response
-              let cBstore2 = mergeSyncResponse cBstore1 resp1
-              liftIO $ cBstore2 `shouldBe` emptyClientStore
-              -- Client A makes sync request 2
-              let req2 = makeSyncRequest cAstore1
-              -- The server processes sync request 2
-              (resp2, sstore3) <- func sstore2 req2
-              liftIO $ do
-                resp2 `shouldBe` emptySyncResponse {syncResponseServerDeleted = S.singleton uuid}
-                sstore3 `shouldBe` sstore2
-              -- Client A merges the response
-              let cAstore2 = mergeSyncResponse cAstore1 resp2
-              liftIO $ cAstore2 `shouldBe` emptyClientStore
-              -- Client A and Client B now have the same store
-              liftIO $ cAstore2 `shouldBe` cBstore2
-      it "does not run into a conflict if two clients both try to sync a deletion"
-        $ forAllValid
-        $ \uuid ->
-          forAllValid $ \i ->
-            eval $ do
-              let cAstore1 = emptyClientStore {clientStoreDeleted = S.singleton uuid}
-              -- Both client a and client b delete an item.
-              let cBstore1 = emptyClientStore {clientStoreDeleted = S.singleton uuid}
-              -- The server still has the undeleted item
-              let sstore1 = ServerStore {serverStoreItems = M.singleton uuid i}
-              -- Client A makes sync request 1
-              let req1 = makeSyncRequest cAstore1
-              -- The server processes sync request 1
-              (resp1, sstore2) <- func sstore1 req1
-              liftIO $ do
-                resp1 `shouldBe` (emptySyncResponse {syncResponseClientDeleted = S.singleton uuid})
-                sstore2 `shouldBe` (ServerStore {serverStoreItems = M.empty})
-              -- Client A merges the response
-              let cAstore2 = mergeSyncResponse cAstore1 resp1
-              liftIO $ cAstore2 `shouldBe` emptyClientStore
-              -- Client B makes sync request 2
-              let req2 = makeSyncRequest cBstore1
-              -- The server processes sync request 2
-              (resp2, sstore3) <- func sstore2 req2
-              liftIO $ do
-                resp2 `shouldBe` (emptySyncResponse {syncResponseClientDeleted = S.singleton uuid})
-                sstore3 `shouldBe` sstore2
-              -- Client B merges the response
-              let cBstore2 = mergeSyncResponse cBstore1 resp2
-              liftIO $ do
-                cBstore2 `shouldBe` emptyClientStore
-                -- Client A and Client B now have the same store
-                cAstore2 `shouldBe` cBstore2
     describe "Multiple items" $ do
       it
         "makes no change if the sync request reflects the same local state with an empty sync response"
@@ -296,16 +192,13 @@ serverSyncSpec eval func = do
               $ func cs
               $ SyncRequest
                 { syncRequestAdded = M.empty,
-                  syncRequestSynced = M.keysSet sis,
-                  syncRequestDeleted = S.empty
+                  syncRequestSynced = M.keysSet sis
                 }
           cs' `shouldBe` cs
           sr
             `shouldBe` SyncResponse
               { syncResponseClientAdded = M.empty,
-                syncResponseClientDeleted = S.empty,
-                syncResponseServerAdded = M.empty,
-                syncResponseServerDeleted = S.empty
+                syncResponseServerAdded = M.empty
               }
       it "successfully syncs additions accross to a second client"
         $ forAllValid
@@ -339,71 +232,6 @@ serverSyncSpec eval func = do
             liftIO $ cBstore2 `shouldBe` (emptyClientStore {clientStoreSynced = items})
             -- Client A and Client B now have the same store
             liftIO $ cAstore2 `shouldBe` cBstore2
-      it "succesfully syncs deletions across to a second client"
-        $ forAllValid
-        $ \syncedItems ->
-          eval $ do
-            let itemIds = M.keysSet syncedItems
-            let cAstore1 = emptyClientStore {clientStoreSynced = syncedItems}
-            -- Client A has synced items
-            -- Client B had synced the same items, but has since deleted them.
-            let cBstore1 = emptyClientStore {clientStoreDeleted = itemIds}
-            -- The server still has the undeleted item
-            let sstore1 = ServerStore {serverStoreItems = syncedItems}
-            -- Client B makes sync request 1
-            let req1 = makeSyncRequest cBstore1
-            -- The server processes sync request 1
-            (resp1, sstore2) <- func sstore1 req1
-            liftIO $ do
-              resp1 `shouldBe` emptySyncResponse {syncResponseClientDeleted = itemIds}
-              sstore2 `shouldBe` emptyServerStore
-            -- Client B merges the response
-            let cBstore2 = mergeSyncResponse cBstore1 resp1
-            liftIO $ cBstore2 `shouldBe` emptyClientStore
-            -- Client A makes sync request 2
-            let req2 = makeSyncRequest cAstore1
-            -- The server processes sync request 2
-            (resp2, sstore3) <- func sstore2 req2
-            liftIO $ do
-              resp2 `shouldBe` emptySyncResponse {syncResponseServerDeleted = itemIds}
-              sstore3 `shouldBe` sstore2
-            -- Client A merges the response
-            let cAstore2 = mergeSyncResponse cAstore1 resp2
-            liftIO $ cAstore2 `shouldBe` emptyClientStore
-            -- Client A and Client B now have the same store
-            liftIO $ cAstore2 `shouldBe` cBstore2
-      it "does not run into a conflict if two clients both try to sync a deletion"
-        $ forAllValid
-        $ \items ->
-          eval $ do
-            let cAstore1 = emptyClientStore {clientStoreDeleted = M.keysSet items}
-            -- Both client a and client b delete their items.
-            let cBstore1 = emptyClientStore {clientStoreDeleted = M.keysSet items}
-            -- The server still has the undeleted items
-            let sstore1 = ServerStore {serverStoreItems = items}
-            -- Client A makes sync request 1
-            let req1 = makeSyncRequest cAstore1
-            -- The server processes sync request 1
-            (resp1, sstore2) <- func sstore1 req1
-            liftIO $ do
-              resp1 `shouldBe` (emptySyncResponse {syncResponseClientDeleted = M.keysSet items})
-              sstore2 `shouldBe` (ServerStore {serverStoreItems = M.empty}) -- TODO will probably need some sort of tombstoning.
-                    -- Client A merges the response
-            let cAstore2 = mergeSyncResponse cAstore1 resp1
-            liftIO $ cAstore2 `shouldBe` emptyClientStore
-            -- Client B makes sync request 2
-            let req2 = makeSyncRequest cBstore1
-            -- The server processes sync request 2
-            (resp2, sstore3) <- func sstore2 req2
-            liftIO $ do
-              resp2 `shouldBe` (emptySyncResponse {syncResponseClientDeleted = M.keysSet items})
-              sstore3 `shouldBe` sstore2
-            -- Client B merges the response
-            let cBstore2 = mergeSyncResponse cBstore1 resp2
-            liftIO $ do
-              cBstore2 `shouldBe` emptyClientStore
-              -- Client A and Client B now have the same store
-              cAstore2 `shouldBe` cBstore2
   describe "General properties" $ do
     it "produces valid results"
       $ forAllValid
@@ -413,9 +241,10 @@ serverSyncSpec eval func = do
           shouldBeValid res
     it "successfully syncs two clients using a central store"
       $ forAllValid
-      $ \store1 ->
+      $ \addedItems ->
         eval $ do
           let central = ServerStore M.empty
+          let store1 = emptyClientStore {clientStoreAdded = addedItems}
           let store2 = emptyClientStore
           let sreq1 = makeSyncRequest store1
           (sresp1, central') <- func central sreq1

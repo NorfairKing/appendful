@@ -5,7 +5,7 @@ packages:
   - appendful-persistent
 extra-deps:
 - github: NorfairKing/validity
-  commit: 8b574e9aa3a00ebbc03183451f8dff4b696a5049
+  commit: 2ef8be2fba631460d770d8cbc7dd67709400fe3d
   subdirs:
   - genvalidity
   - genvalidity-aeson
