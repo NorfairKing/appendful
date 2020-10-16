@@ -26,7 +26,6 @@ share
 ClientThing
   number Int
   serverId ServerThingId Maybe -- Nothing means it's not been synced
-  deleted Bool -- True means this item has been tombstoned
 
   ClientUniqueServerId serverId !force
 
@@ -41,22 +40,21 @@ setupUnsyncedClientThingQuery :: [Thing] -> SqlPersistT IO ()
 setupUnsyncedClientThingQuery = setupUnsyncedClientQuery makeUnsyncedClientThing
 
 setupClientThingQuery :: ClientStore ClientThingId ServerThingId Thing -> SqlPersistT IO ()
-setupClientThingQuery = setupClientQuery makeUnsyncedClientThing makeSyncedClientThing makeDeletedClientThing
+setupClientThingQuery = setupClientQuery makeUnsyncedClientThing makeSyncedClientThing
 
 clientGetStoreThingQuery :: SqlPersistT IO (ClientStore ClientThingId ServerThingId Thing)
-clientGetStoreThingQuery = clientGetStoreQuery clientMakeThing ClientThingServerId ClientThingDeleted
+clientGetStoreThingQuery = clientGetStoreQuery clientMakeThing ClientThingServerId
 
 clientMakeSyncRequestThingQuery :: SqlPersistT IO (SyncRequest ClientThingId ServerThingId Thing)
-clientMakeSyncRequestThingQuery = clientMakeSyncRequestQuery clientMakeThing ClientThingServerId ClientThingDeleted
+clientMakeSyncRequestThingQuery = clientMakeSyncRequestQuery clientMakeThing ClientThingServerId
 
 clientMergeSyncResponseThingQuery :: SyncResponse ClientThingId ServerThingId Thing -> SqlPersistT IO ()
-clientMergeSyncResponseThingQuery = clientMergeSyncResponseQuery makeSyncedClientThing ClientThingServerId ClientThingDeleted
+clientMergeSyncResponseThingQuery = clientMergeSyncResponseQuery makeSyncedClientThing ClientThingServerId
 
 makeUnsyncedClientThing :: Thing -> ClientThing
 makeUnsyncedClientThing Thing {..} =
   ClientThing
     { clientThingNumber = thingNumber,
-      clientThingDeleted = False,
       clientThingServerId = Nothing
     }
 
@@ -64,15 +62,6 @@ makeSyncedClientThing :: ServerThingId -> Thing -> ClientThing
 makeSyncedClientThing sid Thing {..} =
   ClientThing
     { clientThingNumber = thingNumber,
-      clientThingDeleted = False,
-      clientThingServerId = Just sid
-    }
-
-makeDeletedClientThing :: ServerThingId -> ClientThing
-makeDeletedClientThing sid =
-  ClientThing
-    { clientThingNumber = 0, -- dummy
-      clientThingDeleted = True,
       clientThingServerId = Just sid
     }
 

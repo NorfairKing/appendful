@@ -2,3 +2,5 @@
     name: "Reduce duplication"
 - ignore:
     name: "Redundant do"
+- ignore:
+    name: "Use ++"

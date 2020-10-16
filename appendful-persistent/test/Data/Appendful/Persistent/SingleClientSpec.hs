@@ -9,11 +9,11 @@ where
 
 import Control.Monad
 import Control.Monad.Reader
+import Data.Appendful
+import Data.Appendful.Persistent
 import Data.GenValidity.Appendful
 import Data.List
 import qualified Data.Map as M
-import Data.Appendful
-import Data.Appendful.Persistent
 import Database.Persist.Sql
 import Test.Hspec
 import Test.Hspec.QuickCheck

@@ -34,9 +34,9 @@ where
 
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Appendful
 import qualified Data.Map as M
 import Data.Maybe
-import Data.Appendful
 import qualified Data.Set as S
 import Database.Persist
 import Database.Persist.Sql
@@ -54,29 +54,18 @@ clientMakeSyncRequestQuery ::
   (clientRecord -> a) ->
   -- | The server id field
   EntityField clientRecord (Maybe sid) ->
-  -- | The deleted field
-  EntityField clientRecord Bool ->
   SqlPersistT m (SyncRequest (Key clientRecord) sid a)
-clientMakeSyncRequestQuery func serverIdField deletedField = do
+clientMakeSyncRequestQuery func serverIdField = do
   syncRequestAdded <-
     M.fromList . map (\(Entity cid ct) -> (cid, func ct))
       <$> selectList
-        [ serverIdField ==. Nothing,
-          deletedField ==. False
+        [ serverIdField ==. Nothing
         ]
         []
   syncRequestSynced <-
     S.fromList . mapMaybe (\e -> e ^. fieldLens serverIdField)
       <$> selectList
-        [ serverIdField !=. Nothing,
-          deletedField ==. False
-        ]
-        []
-  syncRequestDeleted <-
-    S.fromList . mapMaybe (\e -> e ^. fieldLens serverIdField)
-      <$> selectList
-        [ serverIdField !=. Nothing,
-          deletedField ==. True
+        [ serverIdField !=. Nothing
         ]
         []
   pure SyncRequest {..}
@@ -92,11 +81,9 @@ clientMergeSyncResponseQuery ::
   (sid -> a -> clientRecord) ->
   -- | The server id field
   EntityField clientRecord (Maybe sid) ->
-  -- | The deleted field
-  EntityField clientRecord Bool ->
   SyncResponse (Key clientRecord) sid a ->
   SqlPersistT m ()
-clientMergeSyncResponseQuery func serverIdField deletedField = mergeSyncResponseCustom $ clientSyncProcessor func serverIdField deletedField
+clientMergeSyncResponseQuery func serverIdField = mergeSyncResponseCustom $ clientSyncProcessor func serverIdField
 
 clientSyncProcessor ::
   ( PersistEntity clientRecord,
@@ -108,19 +95,13 @@ clientSyncProcessor ::
   (sid -> a -> clientRecord) ->
   -- | The server id field
   EntityField clientRecord (Maybe sid) ->
-  -- | The deleted field
-  EntityField clientRecord Bool ->
   ClientSyncProcessor (Key clientRecord) sid a (SqlPersistT m)
-clientSyncProcessor func serverIdField deletedField = ClientSyncProcessor {..}
+clientSyncProcessor func serverIdField = ClientSyncProcessor {..}
   where
     clientSyncProcessorSyncServerAdded m = forM_ (M.toList m) $ \(si, st) ->
       insert_ $ func si st
     clientSyncProcessorSyncClientAdded m = forM_ (M.toList m) $ \(cid, sid) ->
       update cid [serverIdField =. Just sid]
-    clientSyncProcessorSyncServerDeleted s = forM_ (S.toList s) $ \sid ->
-      deleteWhere [serverIdField ==. Just sid]
-    clientSyncProcessorSyncClientDeleted s = forM_ (S.toList s) $ \sid ->
-      deleteWhere [serverIdField ==. Just sid, deletedField ==. True]
 
 -- | Process a sync query on the server side.
 serverProcessSyncQuery ::
@@ -160,22 +141,16 @@ serverSyncProcessor filters funcTo funcFrom =
   where
     serverSyncProcessorRead = M.fromList . map (\(Entity i record) -> (i, funcTo record)) <$> selectList filters []
     serverSyncProcessorAddItems = mapM $ insert . funcFrom
-    serverSyncProcessorDeleteItems s = do
-      mapM_ delete s
-      pure s
 
 -- | Process a sync query on the server side with a custom id.
 serverProcessSyncWithCustomIdQuery ::
   ( Ord sid,
     PersistEntity record,
-    PersistField sid,
     PersistEntityBackend record ~ SqlBackend,
     MonadIO m
   ) =>
   -- | The action to generate new identifiers
   SqlPersistT m sid ->
-  -- | The id field
-  EntityField record sid ->
   -- | Filters to select the relevant items
   --
   -- Use these if you have multiple users and you want to sync per-user
@@ -186,20 +161,17 @@ serverProcessSyncWithCustomIdQuery ::
   (sid -> a -> record) ->
   SyncRequest ci sid a ->
   SqlPersistT m (SyncResponse ci sid a)
-serverProcessSyncWithCustomIdQuery genId idField filters funcTo funcFrom = processServerSyncCustom $ serverSyncProcessorWithCustomId genId idField filters funcTo funcFrom
+serverProcessSyncWithCustomIdQuery genId filters funcTo funcFrom = processServerSyncCustom $ serverSyncProcessorWithCustomId genId filters funcTo funcFrom
 
 -- | A server sync processor that uses a custom key as the name
 serverSyncProcessorWithCustomId ::
   ( Ord sid,
     PersistEntity record,
-    PersistField sid,
     PersistEntityBackend record ~ SqlBackend,
     MonadIO m
   ) =>
   -- | The action to generate new identifiers
   SqlPersistT m sid ->
-  -- | The id field
-  EntityField record sid ->
   -- | Filters to select the relevant items
   --
   -- Use these if you have multiple users and you want to sync per-user
@@ -209,7 +181,7 @@ serverSyncProcessorWithCustomId ::
   -- | How to insert a _new_ record
   (sid -> a -> record) ->
   ServerSyncProcessor ci sid a (SqlPersistT m)
-serverSyncProcessorWithCustomId genId idField filters funcTo funcFrom =
+serverSyncProcessorWithCustomId genId filters funcTo funcFrom =
   ServerSyncProcessor {..}
   where
     serverSyncProcessorRead = M.fromList . map (funcTo . entityVal) <$> selectList filters []
@@ -218,9 +190,6 @@ serverSyncProcessorWithCustomId genId idField filters funcTo funcFrom =
       let record = funcFrom sid a
       insert_ record
       pure sid
-    serverSyncProcessorDeleteItems s = do
-      forM_ s $ \sid -> deleteWhere [idField ==. sid]
-      pure s
 
 -- | Setup an unsynced client store
 --
@@ -248,19 +217,15 @@ setupClientQuery ::
   (a -> clientRecord) ->
   -- | Create an un-deleted synced record on the client side
   (sid -> a -> clientRecord) ->
-  -- | Create an deleted synced record on the client side
-  (sid -> clientRecord) ->
   ClientStore (Key clientRecord) sid a ->
   SqlPersistT m ()
-setupClientQuery funcU funcS funcD ClientStore {..} = do
+setupClientQuery funcU funcS ClientStore {..} = do
   forM_ (M.toList clientStoreAdded) $ \(cid, st) ->
     insertKey
       cid
       (funcU st)
   forM_ (M.toList clientStoreSynced) $ \(sid, st) ->
     insert_ (funcS sid st)
-  forM_ (S.toList clientStoreDeleted) $ \sid ->
-    insert_ (funcD sid)
 
 -- | Get a client store
 --
@@ -276,29 +241,18 @@ clientGetStoreQuery ::
   (clientRecord -> a) ->
   -- | The server id field
   EntityField clientRecord (Maybe sid) ->
-  -- | The deleted field
-  EntityField clientRecord Bool ->
   SqlPersistT m (ClientStore (Key clientRecord) sid a)
-clientGetStoreQuery func serverIdField deletedField = do
+clientGetStoreQuery func serverIdField = do
   clientStoreAdded <-
     M.fromList . map (\(Entity cid ct) -> (cid, func ct))
       <$> selectList
-        [ serverIdField ==. Nothing,
-          deletedField ==. False
+        [ serverIdField ==. Nothing
         ]
         []
   clientStoreSynced <-
     M.fromList . mapMaybe (\e@(Entity _ ct) -> (,) <$> (e ^. fieldLens serverIdField) <*> pure (func ct))
       <$> selectList
-        [ serverIdField !=. Nothing,
-          deletedField ==. False
-        ]
-        []
-  clientStoreDeleted <-
-    S.fromList . mapMaybe (\e -> e ^. fieldLens serverIdField)
-      <$> selectList
-        [ serverIdField !=. Nothing,
-          deletedField ==. True
+        [ serverIdField !=. Nothing
         ]
         []
   pure ClientStore {..}

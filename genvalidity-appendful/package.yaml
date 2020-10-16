@@ -1,17 +1,9 @@
 name:                genvalidity-appendful
-version:             0.2.0.0
+version:             0.0.0.0
 github:              "NorfairKing/appendful"
-license:             MIT
 author:              "Tom Sydney Kerckhove"
-maintainer:          "syd.kerckhove@gmail.com"
-copyright:           "Copyright: (c) 2018-2020 Tom Sydney Kerckhove"
-
-extra-source-files:
-- README.md
-- ChangeLog.md
-
-description:         Please see the README on GitHub at <https://github.com/NorfairKing/appendful#readme>
-
+maintainer:          "syd@cs-syd.eu"
+copyright:           "Copyright: (c) 2020 Tom Sydney Kerckhove"
 
 library:
   source-dirs: src
@@ -22,7 +14,7 @@ library:
     - genvalidity
     - genvalidity-containers
     - genvalidity-time
-    - appendful >= 0.2.0.0
+    - appendful
 
 tests:
   appendful-test:

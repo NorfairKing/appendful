@@ -12,9 +12,9 @@
 
 module TestUtils.ServerDB where
 
-import Data.GenValidity
 import Data.Appendful
 import Data.Appendful.Persistent
+import Data.GenValidity
 import Database.Persist.Sql
 import Database.Persist.TH
 import GHC.Generics (Generic)

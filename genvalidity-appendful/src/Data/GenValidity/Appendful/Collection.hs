@@ -5,12 +5,12 @@
 module Data.GenValidity.Appendful.Collection where
 
 import Control.Monad
+import Data.Appendful
 import Data.GenValidity
 import Data.GenValidity.Containers ()
 import Data.GenValidity.Time ()
 import qualified Data.Map as M
 import Data.Map (Map)
-import Data.Appendful
 import qualified Data.Set as S
 import Data.Set (Set)
 import Test.QuickCheck
@@ -28,11 +28,10 @@ instance
 instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) => GenValid (ClientStore ci si a) where
   genValid =
     sized $ \n -> do
-      (a, b, c) <- genSplit3 n
-      (s1, s2) <- resize (a + b) (genValid >>= splitSet)
-      clientStoreAdded <- resize c genValid
-      clientStoreSynced <- mapWithIds s1
-      let clientStoreDeleted = s2
+      (a, b) <- genSplit n
+      s <- resize a genValid
+      clientStoreAdded <- resize b genValid
+      clientStoreSynced <- mapWithIds s
       pure ClientStore {..}
   shrinkValid = shrinkValidStructurally
 
@@ -47,11 +46,10 @@ instance
 instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) => GenValid (SyncRequest ci si a) where
   genValid =
     sized $ \n -> do
-      (a, b, c) <- genSplit3 n
-      (s1, s2) <- resize (a + b) (genValid >>= splitSet)
-      syncRequestAdded <- resize c genValid
-      let syncRequestSynced = s1
-      let syncRequestDeleted = s2
+      (a, b) <- genSplit n
+      s <- resize a genValid
+      syncRequestAdded <- resize b genValid
+      let syncRequestSynced = s
       pure SyncRequest {..}
   shrinkValid = shrinkValidStructurally
 
@@ -66,17 +64,13 @@ instance
 instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) => GenValid (SyncResponse ci si a) where
   genValid = do
     (s1, s2) <- genValid >>= splitSet
-    (s3, s4) <- splitSet s1
-    (s5, s6) <- splitSet s2
     syncResponseClientAdded <-
       fmap M.fromList
-        $ forM (S.toList s3)
+        $ forM (S.toList s1)
         $ \i -> do
           cid <- genValid -- TODO maybe we can find a way to not generate duplicate client ids and speed up this generator, but it's fine for now.
           pure (cid, i)
-    let syncResponseClientDeleted = s4
-    syncResponseServerAdded <- mapWithIds s5
-    let syncResponseServerDeleted = s6
+    syncResponseServerAdded <- mapWithIds s2
     pure SyncResponse {..}
   shrinkValid = shrinkValidStructurally
 
@@ -118,8 +112,6 @@ genUnsyncedStore = do
 
 genClientStoreFromSet :: (Show ci, Ord ci, Ord si, GenValid ci, GenValid v) => Set si -> Gen (ClientStore ci si v)
 genClientStoreFromSet s = do
-  (s1, s2) <- splitSet s
   clientStoreAdded <- genValid
-  clientStoreSynced <- mapWithIds s1
-  let clientStoreDeleted = s2
+  clientStoreSynced <- mapWithIds s
   pure ClientStore {..}

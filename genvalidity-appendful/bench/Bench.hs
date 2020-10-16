@@ -5,27 +5,16 @@
 module Main where
 
 import Criterion.Main as Criterion
-import Data.GenValidity.Criterion
-import Data.GenValidity.Appendful ()
 import Data.Appendful.Collection
-import Data.Appendful.Item
+import Data.GenValidity.Appendful ()
+import Data.GenValidity.Criterion
 
 main :: IO ()
 main =
   Criterion.defaultMain
-    [ bgroup
-        "Item"
-        [ genValidBench @(ClientItem Bool),
-          genValidBench @(ItemSyncRequest Bool),
-          genValidBench @(ItemSyncResponse Bool),
-          genValidBench @(ServerItem Bool)
-        ],
-      bgroup
-        "Collection"
-        [ genValidBench @ClientId,
-          genValidBench @(ClientStore ClientId Int Bool),
-          genValidBench @(SyncRequest ClientId Int Bool),
-          genValidBench @(SyncResponse ClientId Int Bool),
-          genValidBench @(ServerStore Int Bool)
-        ]
+    [ genValidBench @ClientId,
+      genValidBench @(ClientStore ClientId Int Bool),
+      genValidBench @(SyncRequest ClientId Int Bool),
+      genValidBench @(SyncResponse ClientId Int Bool),
+      genValidBench @(ServerStore Int Bool)
     ]
