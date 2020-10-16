@@ -10,7 +10,7 @@ jobs:
     - uses: cachix/install-nix-action@v11
     - uses: cachix/cachix-action@ffed6b919f842f223dbee6fde9d3d1cdf23a118e
       with:
-        name: smos
+        name: appendful
         extraPullNames: validity
         signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
     - run: nix-build ci.nix
