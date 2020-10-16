@@ -1,3 +1,3 @@
 (import ./nix/pkgs.nix).mkShell {
-  inherit ((import ./.).pre-commit-check) shellHook;
+  inherit ((import ./ci.nix).pre-commit-check) shellHook;
 }
