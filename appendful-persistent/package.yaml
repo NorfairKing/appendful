@@ -1,0 +1,50 @@
+name:                appendful-persistent
+version:             0.0.0.0
+github:              "NorfairKing/appendful"
+license:             MIT
+author:              "Tom Sydney Kerckhove"
+maintainer:          "syd.kerckhove@gmail.com"
+copyright:           "Copyright: (c) 2018-2020 Tom Sydney Kerckhove"
+synopsis:            Support for using appendful from persistent-based databases
+
+dependencies:
+  - base >= 4.11 && < 5
+
+library:
+  source-dirs: src
+  ghc-options:
+  - -Wall
+  - -fwarn-redundant-constraints
+  dependencies:
+  - containers
+  - appendful
+  - microlens
+  - persistent
+
+tests:
+  appendful-persistent-test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - QuickCheck
+      - containers
+      - genvalidity
+      - genvalidity-hspec
+      - genvalidity-appendful
+      - genvalidity-persistent
+      - hspec
+      - appendful
+      - appendful-persistent
+      - monad-logger
+      - mtl
+      - path
+      - path-io
+      - persistent
+      - persistent-sqlite
+      - persistent-template
+      - text
+      - validity

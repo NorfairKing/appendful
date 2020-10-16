@@ -1,0 +1,6 @@
+.stack-work/
+*.yaml.lock
+*.cabal
+.pre-commit-config.yaml
+result*
+*~

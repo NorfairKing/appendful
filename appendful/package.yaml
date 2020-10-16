@@ -1,0 +1,29 @@
+name:                appendful
+version:             0.3.0.0
+github:              "NorfairKing/appendful"
+license:             MIT
+author:              "Tom Sydney Kerckhove"
+maintainer:          "syd.kerckhove@gmail.com"
+copyright:           "Copyright: (c) 2018-2020 Tom Sydney Kerckhove"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+description:         Please see the README on GitHub at <https://github.com/NorfairKing/appendful#readme>
+
+
+library:
+  source-dirs: src
+  ghc-options:
+  - -Wall
+  - -fwarn-redundant-constraints
+  dependencies:
+    - aeson
+    - base >= 4.11 && < 5
+    - containers
+    - deepseq
+    - mtl
+    - validity
+    - validity-containers
+
