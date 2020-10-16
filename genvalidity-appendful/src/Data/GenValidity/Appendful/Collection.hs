@@ -44,13 +44,10 @@ instance
   GenUnchecked (SyncRequest ci si a)
 
 instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) => GenValid (SyncRequest ci si a) where
-  genValid =
-    sized $ \n -> do
-      (a, b) <- genSplit n
-      s <- resize a genValid
-      syncRequestAdded <- resize b genValid
-      let syncRequestSynced = s
-      pure SyncRequest {..}
+  genValid = do
+    syncRequestAdded <- genValid
+    syncRequestMaximumSynced <- genValid
+    pure SyncRequest {..}
   shrinkValid = shrinkValidStructurally
 
 instance

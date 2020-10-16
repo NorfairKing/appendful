@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Data.Appendful.Persistent
@@ -37,15 +38,14 @@ import Control.Monad.IO.Class
 import Data.Appendful
 import qualified Data.Map as M
 import Data.Maybe
-import qualified Data.Set as S
 import Database.Persist
 import Database.Persist.Sql
 import Lens.Micro
 
 -- | Make a sync request on the client side
 clientMakeSyncRequestQuery ::
-  ( Ord sid,
-    PersistEntity clientRecord,
+  forall sid clientRecord a m.
+  ( PersistEntity clientRecord,
     PersistField sid,
     PersistEntityBackend clientRecord ~ SqlBackend,
     MonadIO m
@@ -59,15 +59,14 @@ clientMakeSyncRequestQuery func serverIdField = do
   syncRequestAdded <-
     M.fromList . map (\(Entity cid ct) -> (cid, func ct))
       <$> selectList
-        [ serverIdField ==. Nothing
-        ]
+        [serverIdField ==. Nothing]
         []
-  syncRequestSynced <-
-    S.fromList . mapMaybe (\e -> e ^. fieldLens serverIdField)
-      <$> selectList
-        [ serverIdField !=. Nothing
-        ]
-        []
+  syncRequestMaximumSynced <-
+    ((\e -> e ^. fieldLens serverIdField) =<<)
+      <$> selectFirst
+        [serverIdField !=. Nothing]
+        [Desc serverIdField] ::
+      SqlPersistT m (Maybe sid)
   pure SyncRequest {..}
 
 -- | Merge a sync response on the client side

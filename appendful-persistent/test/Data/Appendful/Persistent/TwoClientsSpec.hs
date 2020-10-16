@@ -72,7 +72,7 @@ spec = modifyMaxShrinks (const 0) $ twoClientsSpec $ do
             serverProcessSync
               SyncRequest
                 { syncRequestAdded = M.empty,
-                  syncRequestSynced = M.keysSet sis
+                  syncRequestMaximumSynced = fst <$> M.lookupMax sis
                 }
           cs' <- serverGetStore
           liftIO $

@@ -192,7 +192,7 @@ serverSyncSpec eval func = do
               $ func cs
               $ SyncRequest
                 { syncRequestAdded = M.empty,
-                  syncRequestSynced = M.keysSet sis
+                  syncRequestMaximumSynced = fst <$> M.lookupMax sis
                 }
           cs' `shouldBe` cs
           sr

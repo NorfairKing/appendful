@@ -11,7 +11,7 @@
 -- This concept has a few requirements:
 --
 -- * Items must be immutable.
--- * Items must allow for a centrally unique identifier.
+-- * Items must allow for a centrally unique identifier monotone identifier.
 -- * Items must allow for a client-side unique identifier.
 -- * Identifiers for items must be generated in such a way that they are certainly unique.
 --
@@ -190,38 +190,31 @@ findFreeSpot m =
 data SyncRequest ci si a
   = SyncRequest
       { syncRequestAdded :: !(Map ci a),
-        syncRequestSynced :: !(Set si)
+        syncRequestMaximumSynced :: !(Maybe si)
       }
   deriving (Show, Eq, Ord, Generic)
 
 instance (NFData ci, NFData si, NFData a) => NFData (SyncRequest ci si a)
 
-instance (Validity ci, Validity si, Validity a, Ord ci, Ord si, Show ci) => Validity (SyncRequest ci si a) where
-  validate sr@SyncRequest {..} =
-    mconcat
-      [ genericValidate sr,
-        declare "the sync request items have distinct ids"
-          $ distinct
-          $ S.toList syncRequestSynced
-      ]
+instance (Validity ci, Validity si, Validity a, Ord ci, Ord si, Show ci) => Validity (SyncRequest ci si a)
 
 instance (FromJSON ci, FromJSON si, FromJSON a, FromJSONKey ci, Ord ci, Ord si, Ord a) => FromJSON (SyncRequest ci si a) where
   parseJSON =
     withObject "SyncRequest" $ \o ->
-      SyncRequest <$> o .: "added" <*> o .: "synced"
+      SyncRequest <$> o .: "added" <*> o .:? "max-synced"
 
 instance (ToJSON ci, ToJSON si, ToJSON a, ToJSONKey ci) => ToJSON (SyncRequest ci si a) where
   toJSON SyncRequest {..} =
     object
       [ "added" .= syncRequestAdded,
-        "synced" .= syncRequestSynced
+        "max-synced" .= syncRequestMaximumSynced
       ]
 
 emptySyncRequest :: SyncRequest ci si a
 emptySyncRequest =
   SyncRequest
     { syncRequestAdded = M.empty,
-      syncRequestSynced = S.empty
+      syncRequestMaximumSynced = Nothing
     }
 
 -- | Produce a synchronisation request for a client-side store.
@@ -231,7 +224,7 @@ makeSyncRequest :: ClientStore ci si a -> SyncRequest ci si a
 makeSyncRequest ClientStore {..} =
   SyncRequest
     { syncRequestAdded = clientStoreAdded,
-      syncRequestSynced = M.keysSet clientStoreSynced
+      syncRequestMaximumSynced = fst <$> M.lookupMax clientStoreSynced
     }
 
 -- | A synchronisation response for items with identifiers of type @i@ and values of type @a@
@@ -334,7 +327,7 @@ processServerSyncCustom ::
   m (SyncResponse ci si a)
 processServerSyncCustom ServerSyncProcessor {..} SyncRequest {..} = do
   serverItems <- serverSyncProcessorRead
-  let syncResponseServerAdded = serverItems `M.difference` toMap syncRequestSynced
+  let syncResponseServerAdded = maybe id (\ms -> M.dropWhileAntitone (<= ms)) syncRequestMaximumSynced serverItems
   syncResponseClientAdded <- serverSyncProcessorAddItems syncRequestAdded
   pure SyncResponse {..}
 
