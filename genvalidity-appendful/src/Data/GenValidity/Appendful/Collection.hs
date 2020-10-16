@@ -7,7 +7,6 @@ module Data.GenValidity.Appendful.Collection where
 import Control.Monad
 import Data.GenValidity
 import Data.GenValidity.Containers ()
-import Data.GenValidity.Appendful.Item ()
 import Data.GenValidity.Time ()
 import qualified Data.Map as M
 import Data.Map (Map)
