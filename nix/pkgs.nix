@@ -1,19 +1,14 @@
+{ sources ? ./sources.nix
+}:
 let
-  pkgsv = import (import ./nixpkgs.nix);
-  pkgs = pkgsv {};
-  validity-overlay =
-    import (
-      (
-        pkgs.fetchFromGitHub (import ./validity-version.nix)
-        + "/nix/overlay.nix"
-      )
-    );
+  pkgsv = import sources.nixpkgs;
+  pkgs = pkgsv { };
 in
 pkgsv {
   overlays =
     [
-      validity-overlay
+      (import (sources.validity + "/nix/overlay.nix"))
+      (final: previous: { inherit (import sources.gitignore { inherit (final) lib; }) gitignoreSource; })
       (import ./overlay.nix)
-      (import ./gitignore-src.nix)
     ];
 }

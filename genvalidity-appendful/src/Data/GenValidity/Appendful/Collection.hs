@@ -9,21 +9,15 @@ import Data.Appendful
 import Data.GenValidity
 import Data.GenValidity.Containers ()
 import Data.GenValidity.Time ()
-import qualified Data.Map as M
 import Data.Map (Map)
-import qualified Data.Set as S
+import qualified Data.Map as M
 import Data.Set (Set)
+import qualified Data.Set as S
 import Test.QuickCheck
-
-instance GenUnchecked ClientId
 
 instance GenValid ClientId where
   genValid = genValidStructurallyWithoutExtraChecking
   shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
-
-instance
-  (GenUnchecked ci, GenUnchecked si, GenUnchecked a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) =>
-  GenUnchecked (ClientStore ci si a)
 
 instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) => GenValid (ClientStore ci si a) where
   genValid =
@@ -35,14 +29,6 @@ instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci
       pure ClientStore {..}
   shrinkValid = shrinkValidStructurally
 
-instance
-  (GenUnchecked ci, GenUnchecked si, GenUnchecked a, Show ci, Show si, Show a, GenInvalid ci, GenInvalid si, GenInvalid a, Ord ci, Ord si, Ord a) =>
-  GenInvalid (ClientStore ci si a)
-
-instance
-  (GenUnchecked ci, GenUnchecked si, GenUnchecked a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) =>
-  GenUnchecked (SyncRequest ci si a)
-
 instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) => GenValid (SyncRequest ci si a) where
   genValid = do
     syncRequestAdded <- genValid
@@ -50,23 +36,15 @@ instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci
     pure SyncRequest {..}
   shrinkValid = shrinkValidStructurally
 
-instance
-  (GenUnchecked ci, GenUnchecked si, GenUnchecked a, Show ci, Show si, Show a, GenInvalid ci, GenInvalid si, GenInvalid a, Ord ci, Ord si, Ord a) =>
-  GenInvalid (SyncRequest ci si a)
-
-instance
-  (GenUnchecked ci, GenUnchecked si, GenUnchecked a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) =>
-  GenUnchecked (SyncResponse ci si a)
-
 instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) => GenValid (SyncResponse ci si a) where
   genValid = do
     (s1, s2) <- genValid >>= splitSet
     syncResponseClientAdded <-
-      fmap M.fromList
-        $ forM (S.toList s1)
-        $ \i -> do
-          cid <- genValid -- TODO maybe we can find a way to not generate duplicate client ids and speed up this generator, but it's fine for now.
-          pure (cid, i)
+      fmap M.fromList $
+        forM (S.toList s1) $
+          \i -> do
+            cid <- genValid -- TODO maybe we can find a way to not generate duplicate client ids and speed up this generator, but it's fine for now.
+            pure (cid, i)
     syncResponseServerAdded <- mapWithIds s2
     pure SyncResponse {..}
   shrinkValid = shrinkValidStructurally
@@ -80,21 +58,11 @@ splitSet s =
       pure $ S.split a s
 
 mapWithIds :: (Ord i, GenValid a) => Set i -> Gen (Map i a)
-mapWithIds = traverse id . M.fromSet (const genValid)
-
-instance
-  (GenUnchecked ci, GenUnchecked si, GenUnchecked a, Show ci, Show si, Show a, GenInvalid ci, GenInvalid si, GenInvalid a, Ord ci, Ord si, Ord a) =>
-  GenInvalid (SyncResponse ci si a)
-
-instance (GenUnchecked si, GenUnchecked a, Ord si, Ord a) => GenUnchecked (ServerStore si a)
+mapWithIds = sequenceA . M.fromSet (const genValid)
 
 instance (GenValid si, GenValid a, Show si, Show a, Ord si, Ord a) => GenValid (ServerStore si a) where
   genValid = genValidStructurallyWithoutExtraChecking
   shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
-
-instance
-  (GenUnchecked si, GenUnchecked a, Show si, Show a, GenInvalid si, GenInvalid a, Ord si, Ord a) =>
-  GenInvalid (ServerStore si a)
 
 genServerStoreFromSet :: (Ord si, GenValid v) => Set si -> Gen (ServerStore si v)
 genServerStoreFromSet s = ServerStore <$> mapWithIds s

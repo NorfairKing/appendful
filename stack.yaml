@@ -1,11 +1,12 @@
-resolver: lts-15.15
+resolver: lts-18.16
 packages:
   - appendful
   - genvalidity-appendful
   - appendful-persistent
+
 extra-deps:
 - github: NorfairKing/validity
-  commit: 2ef8be2fba631460d770d8cbc7dd67709400fe3d
+  commit: 466bb2f140e62cae0d4fe3770681c3d74e99cf40
   subdirs:
   - genvalidity
   - genvalidity-aeson
@@ -40,10 +41,6 @@ extra-deps:
   - validity-unordered-containers
   - validity-uuid
   - validity-vector
-nix:
-  path: [ "nixpkgs=https://github.com/NixOS/nixpkgs/archive/e3a2247046d4de66b9b193a6ab3ff040fa3da86d.tar.gz" ]
-  add-gc-roots: true
-  packages:
-  - zlib
-  - haskellPackages.autoexporter
 
+nix:
+  shell-file: shell.nix

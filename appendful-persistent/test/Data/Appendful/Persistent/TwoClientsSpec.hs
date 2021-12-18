@@ -21,117 +21,118 @@ import TestUtils
 {-# ANN module ("HLint: ignore Reduce duplication" :: String) #-}
 
 spec :: Spec
-spec = modifyMaxShrinks (const 0) $ twoClientsSpec $ do
-  describe "sanity" $ do
-    describe "setupClient & clientGetStore" $ do
-      it "roundtrips" $ \te -> forAllValid $ \cstore -> runTest te $ do
-        setupClient A cstore
-        cstore' <- clientGetStore A
-        liftIO $ cstore' `shouldBe` cstore
-    describe "setupServer & serverGetStore" $ do
-      it "roundtrips" $ \te -> forAllValid $ \sstore -> runTest te $ do
-        setupServer sstore
-        sstore' <- serverGetStore
-        liftIO $ sstore' `shouldBe` sstore
-  describe "Single item" $ do
-    it "successfully syncs an addition accross to a second client" $
-      \te ->
-        forAllValid $ \st -> runTest te $ do
-          setupUnsyncedClient A [st]
-          setupUnsyncedClient B []
-          setupServer emptyServerStore
-          req1 <- clientMakeSyncRequest A
-          resp1 <- serverProcessSync req1
-          sstore2 <- serverGetStore
-          case M.toList (syncResponseClientAdded resp1) of
-            [(_, clientAdditionId)] -> do
-              let items = M.singleton clientAdditionId st
-              liftIO $ sstore2 `shouldBe` (ServerStore {serverStoreItems = items})
-              clientMergeSyncResponse A resp1
-              cAstore2 <- clientGetStore A
-              liftIO $ cAstore2 `shouldBe` (emptyClientStore {clientStoreSynced = items})
-              req2 <- clientMakeSyncRequest B
-              resp2 <- serverProcessSync req2
-              sstore3 <- serverGetStore
-              liftIO $ do
-                resp2 `shouldBe` (emptySyncResponse {syncResponseServerAdded = items})
-                sstore3 `shouldBe` sstore2
-              clientMergeSyncResponse B resp2
-              cBstore2 <- clientGetStore B
-              liftIO $ cBstore2 `shouldBe` (emptyClientStore {clientStoreSynced = items})
-              liftIO $ cAstore2 `shouldBe` cBstore2
-            _ -> liftIO $ expectationFailure "Should have found exactly one added item."
-  describe "Multiple items" $ do
-    it
-      "makes no change if the sync request reflects the same local state with an empty sync response"
-      $ \te ->
-        forAllValid $ \sis -> runTest te $ do
-          let cs = ServerStore sis
-          setupServer cs
-          sr <-
-            serverProcessSync
-              SyncRequest
-                { syncRequestAdded = M.empty,
-                  syncRequestMaximumSynced = fst <$> M.lookupMax sis
-                }
-          cs' <- serverGetStore
-          liftIO $
-            do
-              cs' `shouldBe` cs
-              sr
-                `shouldBe` SyncResponse
-                  { syncResponseClientAdded = M.empty,
-                    syncResponseServerAdded = M.empty
+spec = modifyMaxShrinks (const 0) $
+  twoClientsSpec $ do
+    describe "sanity" $ do
+      describe "setupClient & clientGetStore" $ do
+        it "roundtrips" $ \te -> forAllValid $ \cstore -> runTest te $ do
+          setupClient A cstore
+          cstore' <- clientGetStore A
+          liftIO $ cstore' `shouldBe` cstore
+      describe "setupServer & serverGetStore" $ do
+        it "roundtrips" $ \te -> forAllValid $ \sstore -> runTest te $ do
+          setupServer sstore
+          sstore' <- serverGetStore
+          liftIO $ sstore' `shouldBe` sstore
+    describe "Single item" $ do
+      it "successfully syncs an addition accross to a second client" $
+        \te ->
+          forAllValid $ \st -> runTest te $ do
+            setupUnsyncedClient A [st]
+            setupUnsyncedClient B []
+            setupServer emptyServerStore
+            req1 <- clientMakeSyncRequest A
+            resp1 <- serverProcessSync req1
+            sstore2 <- serverGetStore
+            case M.toList (syncResponseClientAdded resp1) of
+              [(_, clientAdditionId)] -> do
+                let items = M.singleton clientAdditionId st
+                liftIO $ sstore2 `shouldBe` (ServerStore {serverStoreItems = items})
+                clientMergeSyncResponse A resp1
+                cAstore2 <- clientGetStore A
+                liftIO $ cAstore2 `shouldBe` (emptyClientStore {clientStoreSynced = items})
+                req2 <- clientMakeSyncRequest B
+                resp2 <- serverProcessSync req2
+                sstore3 <- serverGetStore
+                liftIO $ do
+                  resp2 `shouldBe` (emptySyncResponse {syncResponseServerAdded = items})
+                  sstore3 `shouldBe` sstore2
+                clientMergeSyncResponse B resp2
+                cBstore2 <- clientGetStore B
+                liftIO $ cBstore2 `shouldBe` (emptyClientStore {clientStoreSynced = items})
+                liftIO $ cAstore2 `shouldBe` cBstore2
+              _ -> liftIO $ expectationFailure "Should have found exactly one added item."
+    describe "Multiple items" $ do
+      it
+        "makes no change if the sync request reflects the same local state with an empty sync response"
+        $ \te ->
+          forAllValid $ \sis -> runTest te $ do
+            let cs = ServerStore sis
+            setupServer cs
+            sr <-
+              serverProcessSync
+                SyncRequest
+                  { syncRequestAdded = M.empty,
+                    syncRequestMaximumSynced = fst <$> M.lookupMax sis
                   }
-    it "successfully syncs additions accross to a second client" $
-      \te -> forAllValid $ \is ->
-        runTest te $ do
-          setupClient A $ emptyClientStore {clientStoreAdded = is}
-          -- Client B is empty
-          setupClient B emptyClientStore
-          -- The server is empty
-          setupServer emptyServerStore
-          -- Client A makes sync request 1
-          req1 <- clientMakeSyncRequest A
-          -- The server processes sync request 1
-          resp1 <- serverProcessSync req1
-          sstore2 <- serverGetStore
-          -- Client A merges the response
-          clientMergeSyncResponse A resp1
-          cAstore2 <- clientGetStore A
-          let items = clientStoreSynced cAstore2
-          liftIO $ do
-            clientStoreAdded cAstore2 `shouldBe` M.empty
-            sstore2 `shouldBe` (ServerStore {serverStoreItems = items})
-          liftIO $ cAstore2 `shouldBe` (emptyClientStore {clientStoreSynced = items})
-          -- Client B makes sync request 2
-          req2 <- clientMakeSyncRequest B
-          -- The server processes sync request 2
-          resp2 <- serverProcessSync req2
-          sstore3 <- serverGetStore
-          liftIO $ do
-            resp2 `shouldBe` (emptySyncResponse {syncResponseServerAdded = items})
-            sstore3 `shouldBe` sstore2
-          -- Client B merges the response
-          clientMergeSyncResponse B resp2
-          cBstore2 <- clientGetStore B
-          liftIO $ cBstore2 `shouldBe` (emptyClientStore {clientStoreSynced = items})
-          -- Client A and Client B now have the same store
-          liftIO $ cAstore2 `shouldBe` cBstore2
-  describe "General properties"
-    $ it "successfully syncs two clients using a central store"
-    $ \te ->
-      forAllValid $ \addedItems ->
-        runTest te $
-          do
-            setupServer $ ServerStore M.empty
-            let store1 = emptyClientStore {clientStoreAdded = addedItems}
-            setupClient A store1
+            cs' <- serverGetStore
+            liftIO $
+              do
+                cs' `shouldBe` cs
+                sr
+                  `shouldBe` SyncResponse
+                    { syncResponseClientAdded = M.empty,
+                      syncResponseServerAdded = M.empty
+                    }
+      it "successfully syncs additions accross to a second client" $
+        \te -> forAllValid $ \is ->
+          runTest te $ do
+            setupClient A $ emptyClientStore {clientStoreAdded = is}
+            -- Client B is empty
             setupClient B emptyClientStore
-            void $ sync A
-            (_, _, _, store2') <- sync B
-            (_, _, _, store1'') <- sync A
-            liftIO $ store1'' `shouldBe` store2'
+            -- The server is empty
+            setupServer emptyServerStore
+            -- Client A makes sync request 1
+            req1 <- clientMakeSyncRequest A
+            -- The server processes sync request 1
+            resp1 <- serverProcessSync req1
+            sstore2 <- serverGetStore
+            -- Client A merges the response
+            clientMergeSyncResponse A resp1
+            cAstore2 <- clientGetStore A
+            let items = clientStoreSynced cAstore2
+            liftIO $ do
+              clientStoreAdded cAstore2 `shouldBe` M.empty
+              sstore2 `shouldBe` (ServerStore {serverStoreItems = items})
+            liftIO $ cAstore2 `shouldBe` (emptyClientStore {clientStoreSynced = items})
+            -- Client B makes sync request 2
+            req2 <- clientMakeSyncRequest B
+            -- The server processes sync request 2
+            resp2 <- serverProcessSync req2
+            sstore3 <- serverGetStore
+            liftIO $ do
+              resp2 `shouldBe` (emptySyncResponse {syncResponseServerAdded = items})
+              sstore3 `shouldBe` sstore2
+            -- Client B merges the response
+            clientMergeSyncResponse B resp2
+            cBstore2 <- clientGetStore B
+            liftIO $ cBstore2 `shouldBe` (emptyClientStore {clientStoreSynced = items})
+            -- Client A and Client B now have the same store
+            liftIO $ cAstore2 `shouldBe` cBstore2
+    describe "General properties" $
+      it "successfully syncs two clients using a central store" $
+        \te ->
+          forAllValid $ \addedItems ->
+            runTest te $
+              do
+                setupServer $ ServerStore M.empty
+                let store1 = emptyClientStore {clientStoreAdded = addedItems}
+                setupClient A store1
+                setupClient B emptyClientStore
+                void $ sync A
+                (_, _, _, store2') <- sync B
+                (_, _, _, store1'') <- sync A
+                liftIO $ store1'' `shouldBe` store2'
 
 type T a = ReaderT TestEnv IO a
 
@@ -197,12 +198,11 @@ clientMergeSyncResponse n = runClientDB n . clientMergeSyncResponseThingQuery
 data Client = A | B
   deriving (Show, Eq)
 
-data TestEnv
-  = TestEnv
-      { testEnvServerPool :: ConnectionPool,
-        testEnvClient1Pool :: ConnectionPool,
-        testEnvClient2Pool :: ConnectionPool
-      }
+data TestEnv = TestEnv
+  { testEnvServerPool :: ConnectionPool,
+    testEnvClient1Pool :: ConnectionPool,
+    testEnvClient2Pool :: ConnectionPool
+  }
 
 twoClientsSpec :: SpecWith TestEnv -> Spec
 twoClientsSpec = around withTestEnv
