@@ -1,9 +1,11 @@
-name:                genvalidity-appendful
-version:             0.0.0.0
-github:              "NorfairKing/appendful"
-author:              "Tom Sydney Kerckhove"
-maintainer:          "syd@cs-syd.eu"
-copyright:           "Copyright: (c) 2020 Tom Sydney Kerckhove"
+name: genvalidity-appendful
+version: 0.0.0.0
+github: "NorfairKing/appendful"
+author: "Tom Sydney Kerckhove"
+maintainer: "syd@cs-syd.eu"
+copyright: "Copyright: (c) 2020-2022 Tom Sydney Kerckhove"
+description: Generators for ppend-only cooperative agreement
+license: MIT
 
 library:
   source-dirs: src

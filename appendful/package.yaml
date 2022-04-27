@@ -1,9 +1,11 @@
-name:                appendful
-version:             0.0.0.0
-github:              "NorfairKing/appendful"
-author:              "Tom Sydney Kerckhove"
-maintainer:          "syd@cs-syd.eu"
-copyright:           "Copyright: (c) 2020 Tom Sydney Kerckhove"
+name: appendful
+version: 0.0.0.0
+github: "NorfairKing/appendful"
+author: "Tom Sydney Kerckhove"
+maintainer: "syd@cs-syd.eu"
+copyright: "Copyright: (c) 2020-2022 Tom Sydney Kerckhove"
+license: MIT
+description: Append-only cooperative agreement
 
 
 library:

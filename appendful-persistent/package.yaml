@@ -1,9 +1,11 @@
-name:                appendful-persistent
-version:             0.0.0.0
-github:              "NorfairKing/appendful"
-author:              "Tom Sydney Kerckhove"
-maintainer:          "syd@cs-syd.eu"
-copyright:           "Copyright: (c) 2020 Tom Sydney Kerckhove"
+name: appendful-persistent
+version: 0.0.0.0
+github: "NorfairKing/appendful"
+author: "Tom Sydney Kerckhove"
+maintainer: "syd@cs-syd.eu"
+copyright: "Copyright: (c) 2020-2022 Tom Sydney Kerckhove"
+description: Persistent integration for ppend-only cooperative agreement
+license: MIT
 
 dependencies:
   - base >= 4.11 && < 5
