@@ -1,4 +1,5 @@
 final: previous:
+with final.lib;
 with final.haskell.lib;
 let
   appendfulPkg = name:
@@ -15,6 +16,12 @@ in
       genvalidity-appendful = appendfulPkg "genvalidity-appendful";
       appendful-persistent = appendfulPkg "appendful-persistent";
     };
+  appendfulRelease =
+    final.symlinkJoin {
+      name = "appendful-release";
+      paths = attrValues final.validityPackages;
+    };
+
   haskellPackages =
     previous.haskellPackages.override (
       old:
