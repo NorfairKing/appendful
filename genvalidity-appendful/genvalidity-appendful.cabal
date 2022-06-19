@@ -14,6 +14,11 @@ maintainer:     syd@cs-syd.eu
 copyright:      Copyright: (c) 2020-2022 Tom Sydney Kerckhove
 license:        MIT
 build-type:     Simple
+extra-source-files:
+    test_resources/collection/client.txt
+    test_resources/collection/request.txt
+    test_resources/collection/response.txt
+    test_resources/collection/server.txt
 
 source-repository head
   type: git
