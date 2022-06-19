@@ -19,7 +19,7 @@ in
   appendfulRelease =
     final.symlinkJoin {
       name = "appendful-release";
-      paths = attrValues final.validityPackages;
+      paths = attrValues final.appendfulPackages;
     };
 
   haskellPackages =
