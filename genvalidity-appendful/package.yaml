@@ -20,8 +20,9 @@ library:
 
 tests:
   appendful-test:
-    main:                Spec.hs
-    source-dirs:         test
+    main: Spec.hs
+    source-dirs: test
+    build-tools: sydtest-discover
     ghc-options:
     - -threaded
     - -rtsopts
@@ -30,11 +31,11 @@ tests:
       - base >= 4.7 && < 5
       - QuickCheck
       - containers
-      - genvalidity-hspec
-      - genvalidity-hspec-aeson
+      - genvalidity-sydtest
+      - genvalidity-sydtest-aeson
       - genvalidity-appendful
       - genvalidity-uuid
-      - hspec
+      - sydtest
       - appendful
       - mtl
       - pretty-show
@@ -44,8 +45,8 @@ tests:
 
 benchmarks:
   genvalidity-appendful-bench:
-    main:                Bench.hs
-    source-dirs:         bench
+    main: Bench.hs
+    source-dirs: bench
     ghc-options:
     - -threaded
     - -rtsopts

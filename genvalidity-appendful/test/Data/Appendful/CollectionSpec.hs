@@ -18,9 +18,9 @@ import qualified Data.Map.Strict as M
 import Data.UUID
 import GHC.Generics (Generic)
 import System.Random
-import Test.Hspec
-import Test.Validity
-import Test.Validity.Aeson
+import Test.Syd
+import Test.Syd.Validity
+import Test.Syd.Validity.Aeson
 
 {-# ANN module ("HLint: ignore Reduce duplication" :: String) #-}
 

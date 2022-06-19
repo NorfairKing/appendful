@@ -25,6 +25,7 @@ tests:
   appendful-persistent-test:
     main: Spec.hs
     source-dirs: test
+    build-tools: sydtest-discover
     ghc-options:
       - -threaded
       - -rtsopts
@@ -33,10 +34,10 @@ tests:
       - QuickCheck
       - containers
       - genvalidity
-      - genvalidity-hspec
+      - genvalidity-sydtest
       - genvalidity-appendful
       - genvalidity-persistent
-      - hspec
+      - sydtest
       - appendful
       - appendful-persistent
       - monad-logger

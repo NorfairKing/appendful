@@ -13,15 +13,14 @@ import Data.Appendful
 import Data.GenValidity.Appendful ()
 import qualified Data.Map as M
 import Database.Persist.Sql
-import Test.Hspec
-import Test.Hspec.QuickCheck
-import Test.Validity
+import Test.Syd hiding (runTest)
+import Test.Syd.Validity
 import TestUtils
 
 {-# ANN module ("HLint: ignore Reduce duplication" :: String) #-}
 
 spec :: Spec
-spec = modifyMaxShrinks (const 0) $
+spec =
   twoClientsSpec $ do
     describe "sanity" $ do
       describe "setupClient & clientGetStore" $ do
@@ -205,7 +204,9 @@ data TestEnv = TestEnv
   }
 
 twoClientsSpec :: SpecWith TestEnv -> Spec
-twoClientsSpec = around withTestEnv
+twoClientsSpec =
+  modifyMaxSuccess (`div` 10)
+    . around withTestEnv
 
 withTestEnv :: (TestEnv -> IO a) -> IO a
 withTestEnv func =
