@@ -28,18 +28,21 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-      - base >= 4.7 && < 5
       - QuickCheck
+      - appendful
+      - autodocodec
+      - autodocodec-yaml
+      - base >= 4.7 && < 5
       - containers
+      - genvalidity-appendful
       - genvalidity-sydtest
       - genvalidity-sydtest-aeson
-      - genvalidity-appendful
       - genvalidity-uuid
-      - sydtest
-      - appendful
       - mtl
       - pretty-show
       - random
+      - safe-coloured-text
+      - sydtest
       - time
       - uuid
 

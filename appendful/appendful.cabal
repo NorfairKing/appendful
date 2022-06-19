@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           appendful
-version:        0.0.0.0
+version:        0.1.0.0
 description:    Append-only cooperative agreement
 homepage:       https://github.com/NorfairKing/appendful#readme
 bug-reports:    https://github.com/NorfairKing/appendful/issues
@@ -30,6 +30,7 @@ library
   ghc-options: -Wall -fwarn-redundant-constraints
   build-depends:
       aeson
+    , autodocodec
     , base >=4.11 && <5
     , containers
     , deepseq

@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -78,9 +79,10 @@ module Data.Appendful.Collection
   )
 where
 
+import Autodocodec
 import Control.DeepSeq
 import Control.Monad.State.Strict
-import Data.Aeson
+import Data.Aeson (FromJSON, FromJSONKey (..), ToJSON, ToJSONKey (..))
 import Data.List
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
@@ -99,11 +101,16 @@ import GHC.Generics (Generic)
 newtype ClientId = ClientId
   { unClientId :: Word64
   }
-  deriving (Show, Eq, Ord, Enum, Bounded, Generic, ToJSON, ToJSONKey, FromJSON, FromJSONKey)
+  deriving stock (Show, Eq, Ord, Generic)
+  deriving newtype (Enum, Bounded, ToJSONKey, FromJSONKey)
+  deriving (FromJSON, ToJSON) via (Autodocodec ClientId)
 
 instance Validity ClientId
 
 instance NFData ClientId
+
+instance HasCodec ClientId where
+  codec = dimapCodec ClientId unClientId codec <?> "ClientId"
 
 -- | A client-side store of items with Client Id's of type @ci@, Server Id's of type @i@ and values of type @a@
 data ClientStore ci si a = ClientStore
@@ -111,6 +118,7 @@ data ClientStore ci si a = ClientStore
     clientStoreSynced :: !(Map si a)
   }
   deriving (Show, Eq, Ord, Generic)
+  deriving (FromJSON, ToJSON) via (Autodocodec (ClientStore ci si a))
 
 instance (NFData ci, NFData si, NFData a) => NFData (ClientStore ci si a)
 
@@ -123,15 +131,24 @@ instance (Validity ci, Validity si, Validity a, Show ci, Show si, Ord ci, Ord si
             M.keys clientStoreSynced
       ]
 
-instance (Ord ci, FromJSON ci, FromJSONKey ci, Ord si, FromJSON si, FromJSONKey si, FromJSON a) => FromJSON (ClientStore ci si a) where
-  parseJSON =
-    withObject "ClientStore" $ \o ->
-      ClientStore <$> o .:? "added" .!= M.empty <*> o .:? "synced" .!= M.empty
-
-instance (Ord ci, ToJSON ci, ToJSONKey ci, Ord si, ToJSON si, ToJSONKey si, ToJSON a) => ToJSON (ClientStore ci si a) where
-  toJSON ClientStore {..} =
-    object
-      ["added" .= clientStoreAdded, "synced" .= clientStoreSynced]
+instance
+  ( Ord ci,
+    FromJSONKey ci,
+    ToJSONKey ci,
+    Ord si,
+    FromJSONKey si,
+    ToJSONKey si,
+    HasCodec si,
+    Eq a,
+    HasCodec a
+  ) =>
+  HasCodec (ClientStore ci si a)
+  where
+  codec =
+    object "ClientStore" $
+      ClientStore
+        <$> optionalFieldWithOmittedDefault "added" M.empty "added items" .= clientStoreAdded
+        <*> optionalFieldWithOmittedDefault "synced" M.empty "synced items" .= clientStoreSynced
 
 -- | The client store with no items.
 emptyClientStore :: ClientStore ci si a
@@ -189,23 +206,31 @@ data SyncRequest ci si a = SyncRequest
   { syncRequestAdded :: !(Map ci a),
     syncRequestMaximumSynced :: !(Maybe si)
   }
-  deriving (Show, Eq, Ord, Generic)
+  deriving stock (Show, Eq, Ord, Generic)
+  deriving (FromJSON, ToJSON) via (Autodocodec (SyncRequest ci si a))
 
 instance (NFData ci, NFData si, NFData a) => NFData (SyncRequest ci si a)
 
 instance (Validity ci, Validity si, Validity a, Ord ci, Ord si, Show ci) => Validity (SyncRequest ci si a)
 
-instance (FromJSON ci, FromJSON si, FromJSON a, FromJSONKey ci, Ord ci, Ord si, Ord a) => FromJSON (SyncRequest ci si a) where
-  parseJSON =
-    withObject "SyncRequest" $ \o ->
-      SyncRequest <$> o .: "added" <*> o .:? "max-synced"
-
-instance (ToJSON ci, ToJSON si, ToJSON a, ToJSONKey ci) => ToJSON (SyncRequest ci si a) where
-  toJSON SyncRequest {..} =
-    object
-      [ "added" .= syncRequestAdded,
-        "max-synced" .= syncRequestMaximumSynced
-      ]
+instance
+  ( Ord ci,
+    FromJSONKey ci,
+    ToJSONKey ci,
+    Ord si,
+    FromJSONKey si,
+    ToJSONKey si,
+    HasCodec si,
+    Eq a,
+    HasCodec a
+  ) =>
+  HasCodec (SyncRequest ci si a)
+  where
+  codec =
+    object "SyncRequest" $
+      SyncRequest
+        <$> optionalFieldWithOmittedDefault "added" M.empty "new items" .= syncRequestAdded
+        <*> optionalFieldOrNull "max-synced" "largest synced value" .= syncRequestMaximumSynced
 
 emptySyncRequest :: SyncRequest ci si a
 emptySyncRequest =
@@ -230,6 +255,7 @@ data SyncResponse ci si a = SyncResponse
     syncResponseServerAdded :: !(Map si a)
   }
   deriving (Show, Eq, Ord, Generic)
+  deriving (FromJSON, ToJSON) via (Autodocodec (SyncResponse ci si a))
 
 instance (NFData ci, NFData si, NFData a) => NFData (SyncResponse ci si a)
 
@@ -245,17 +271,25 @@ instance (Validity ci, Validity si, Validity a, Show ci, Show si, Ord ci, Ord si
               ]
       ]
 
-instance (Ord ci, Ord si, FromJSON ci, FromJSON si, FromJSONKey ci, FromJSONKey si, Ord a, FromJSON a) => FromJSON (SyncResponse ci si a) where
-  parseJSON =
-    withObject "SyncResponse" $ \o ->
-      SyncResponse <$> o .: "client-added" <*> o .: "server-added"
-
-instance (ToJSON ci, ToJSON si, ToJSONKey ci, ToJSONKey si, ToJSON a) => ToJSON (SyncResponse ci si a) where
-  toJSON SyncResponse {..} =
-    object
-      [ "client-added" .= syncResponseClientAdded,
-        "server-added" .= syncResponseServerAdded
-      ]
+instance
+  ( Ord ci,
+    FromJSONKey ci,
+    ToJSONKey ci,
+    HasCodec ci,
+    Ord si,
+    FromJSONKey si,
+    ToJSONKey si,
+    HasCodec si,
+    Eq a,
+    HasCodec a
+  ) =>
+  HasCodec (SyncResponse ci si a)
+  where
+  codec =
+    object "SyncResponse" $
+      SyncResponse
+        <$> optionalFieldWithOmittedDefault "client-added" M.empty "items added by the client" .= syncResponseClientAdded
+        <*> optionalFieldWithOmittedDefault "server-added" M.empty "items added by the server" .= syncResponseServerAdded
 
 emptySyncResponse :: SyncResponse ci si a
 emptySyncResponse =
@@ -329,11 +363,22 @@ processServerSyncCustom ServerSyncProcessor {..} SyncRequest {..} = do
 newtype ServerStore si a = ServerStore
   { serverStoreItems :: Map si a
   }
-  deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
+  deriving (Show, Eq, Ord, Generic)
+  deriving (FromJSON, ToJSON) via (Autodocodec (ServerStore si a))
 
 instance (NFData si, NFData a) => NFData (ServerStore si a)
 
 instance (Validity si, Validity a, Show si, Show a, Ord si) => Validity (ServerStore si a)
+
+instance
+  ( Ord si,
+    FromJSONKey si,
+    ToJSONKey si,
+    HasCodec a
+  ) =>
+  HasCodec (ServerStore si a)
+  where
+  codec = dimapCodec ServerStore serverStoreItems codec
 
 -- | An empty central store to start with
 emptyServerStore :: ServerStore si a

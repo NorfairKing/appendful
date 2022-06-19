@@ -1,5 +1,5 @@
 name: appendful
-version: 0.0.0.0
+version: 0.1.0.0
 github: "NorfairKing/appendful"
 author: "Tom Sydney Kerckhove"
 maintainer: "syd@cs-syd.eu"
@@ -15,10 +15,10 @@ library:
   - -fwarn-redundant-constraints
   dependencies:
     - aeson
+    - autodocodec
     - base >= 4.11 && < 5
     - containers
     - deepseq
     - mtl
     - validity
     - validity-containers
-
