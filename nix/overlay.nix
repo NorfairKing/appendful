@@ -1,35 +1,51 @@
-final: previous:
-with final.lib;
+final: prev:
 with final.haskell.lib;
-let
-  appendfulPkg = name:
-    doBenchmark (
-      buildStrictly (
-        final.haskellPackages.callCabal2nixWithOptions name (final.gitignoreSource (../. + "/${name}")) "--no-hpack" { }
-      )
-    );
-in
 {
-  appendfulPackages =
-    {
-      appendful = appendfulPkg "appendful";
-      genvalidity-appendful = appendfulPkg "genvalidity-appendful";
-      appendful-persistent = appendfulPkg "appendful-persistent";
-    };
-  appendfulRelease =
-    final.symlinkJoin {
-      name = "appendful-release";
-      paths = attrValues final.appendfulPackages;
-    };
 
-  haskellPackages =
-    previous.haskellPackages.override (
-      old:
-      {
-        overrides =
-          final.lib.composeExtensions (old.overrides or (_: _: { })) (
-            self: super: final.appendfulPackages
-          );
-      }
-    );
+  haskellPackages = prev.haskellPackages.override (old: {
+    overrides = final.lib.composeExtensions (old.overrides or (_: _: { }))
+      (
+        self: super:
+          let
+            appendfulPkg = name:
+              buildFromSdist (overrideCabal (self.callPackage (../${name}/default.nix) { }) (old: {
+                doBenchmark = true;
+                configureFlags = (old.configureFlags or [ ]) ++ [
+                  # Optimisations
+                  "--ghc-options=-O2"
+                  # Extra warnings
+                  "--ghc-options=-Wall"
+                  "--ghc-options=-Wincomplete-uni-patterns"
+                  "--ghc-options=-Wincomplete-record-updates"
+                  "--ghc-options=-Wpartial-fields"
+                  "--ghc-options=-Widentities"
+                  "--ghc-options=-Wredundant-constraints"
+                  "--ghc-options=-Wcpp-undef"
+                  "--ghc-options=-Werror"
+                  "--ghc-options=-Wno-deprecations"
+                ];
+                # Ugly hack because we can't just add flags to the 'test' invocation.
+                # Show test output as we go, instead of all at once afterwards.
+                testTarget = (old.testTarget or "") + " --show-details=direct";
+              }));
+
+            appendfulPackages =
+              final.lib.genAttrs [
+                "appendful"
+                "genvalidity-appendful"
+                "appendful-persistent"
+              ]
+                appendfulPkg;
+          in
+          {
+            inherit appendfulPackages;
+
+            appendfulRelease =
+              final.symlinkJoin {
+                name = "appendful-release";
+                paths = final.lib.attrValues self.appendfulPackages;
+              };
+          } // appendfulPackages
+      );
+  });
 }

@@ -33,7 +33,7 @@ import Text.Colour
 
 spec :: Spec
 spec = do
-  let yamlSchemaSpec :: forall a. (Typeable a, GenValid a, HasCodec a) => FilePath -> Spec
+  let yamlSchemaSpec :: forall a. (Typeable a, HasCodec a) => FilePath -> Spec
       yamlSchemaSpec filePath = do
         it ("outputs the same schema as before for " <> nameOf @a) $
           pureGoldenTextFile

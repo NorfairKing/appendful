@@ -19,7 +19,7 @@ instance GenValid ClientId where
   genValid = genValidStructurallyWithoutExtraChecking
   shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
 
-instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) => GenValid (ClientStore ci si a) where
+instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Ord ci, Ord si) => GenValid (ClientStore ci si a) where
   genValid =
     sized $ \n -> do
       (a, b) <- genSplit n
@@ -29,14 +29,14 @@ instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci
       pure ClientStore {..}
   shrinkValid = shrinkValidStructurally
 
-instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) => GenValid (SyncRequest ci si a) where
+instance (GenValid ci, GenValid si, GenValid a, Show ci, Ord ci, Ord si) => GenValid (SyncRequest ci si a) where
   genValid = do
     syncRequestAdded <- genValid
     syncRequestMaximumSynced <- genValid
     pure SyncRequest {..}
   shrinkValid = shrinkValidStructurally
 
-instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Show a, Ord ci, Ord si, Ord a) => GenValid (SyncResponse ci si a) where
+instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Ord ci, Ord si) => GenValid (SyncResponse ci si a) where
   genValid = do
     (s1, s2) <- genValid >>= splitSet
     syncResponseClientAdded <-
@@ -57,25 +57,25 @@ splitSet s =
       a <- elements $ S.toList s
       pure $ S.split a s
 
-mapWithIds :: (Ord i, GenValid a) => Set i -> Gen (Map i a)
+mapWithIds :: (GenValid a) => Set i -> Gen (Map i a)
 mapWithIds = sequenceA . M.fromSet (const genValid)
 
-instance (GenValid si, GenValid a, Show si, Show a, Ord si, Ord a) => GenValid (ServerStore si a) where
+instance (GenValid si, GenValid a, Show si, Show a, Ord si) => GenValid (ServerStore si a) where
   genValid = genValidStructurallyWithoutExtraChecking
   shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
 
-genServerStoreFromSet :: (Ord si, GenValid v) => Set si -> Gen (ServerStore si v)
+genServerStoreFromSet :: (GenValid v) => Set si -> Gen (ServerStore si v)
 genServerStoreFromSet s = ServerStore <$> mapWithIds s
 
 genUnsyncedStore ::
   forall ci si a.
-  (Show ci, Ord ci, Ord si, Ord a, GenValid ci, GenValid si, GenValid a) =>
+  (Show ci, Ord ci, GenValid ci, GenValid a) =>
   Gen (ClientStore ci si a)
 genUnsyncedStore = do
   as <- genValid
   pure $ emptyClientStore {clientStoreAdded = as}
 
-genClientStoreFromSet :: (Show ci, Ord ci, Ord si, GenValid ci, GenValid v) => Set si -> Gen (ClientStore ci si v)
+genClientStoreFromSet :: (Show ci, Ord ci, GenValid ci, GenValid v) => Set si -> Gen (ClientStore ci si v)
 genClientStoreFromSet s = do
   clientStoreAdded <- genValid
   clientStoreSynced <- mapWithIds s
