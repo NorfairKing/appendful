@@ -1,11 +1,11 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.7.
+-- This file has been generated from package.yaml by hpack version 0.35.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           genvalidity-appendful
-version:        0.0.0.0
+version:        0.1.0.0
 description:    Generators for ppend-only cooperative agreement
 homepage:       https://github.com/NorfairKing/appendful#readme
 bug-reports:    https://github.com/NorfairKing/appendful/issues
