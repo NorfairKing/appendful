@@ -1,5 +1,5 @@
 name: appendful-persistent
-version: 0.1.0.0
+version: 0.1.0.1
 github: "NorfairKing/appendful"
 author: "Tom Sydney Kerckhove"
 maintainer: "syd@cs-syd.eu"
@@ -9,6 +9,9 @@ license: MIT
 
 dependencies:
   - base >= 4.11 && < 5
+
+extra-source-files:
+  - ChangeLog.md
 
 library:
   source-dirs: src

@@ -6,7 +6,7 @@
 }:
 mkDerivation {
   pname = "appendful-persistent";
-  version = "0.1.0.0";
+  version = "0.1.0.1";
   src = ./.;
   libraryHaskellDepends = [
     appendful base containers microlens persistent
