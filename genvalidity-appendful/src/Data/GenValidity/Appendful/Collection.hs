@@ -49,7 +49,7 @@ instance (GenValid ci, GenValid si, GenValid a, Show ci, Show si, Ord ci, Ord si
     pure SyncResponse {..}
   shrinkValid = shrinkValidStructurally
 
-splitSet :: Ord i => Set i -> Gen (Set i, Set i)
+splitSet :: (Ord i) => Set i -> Gen (Set i, Set i)
 splitSet s =
   if S.null s
     then pure (S.empty, S.empty)

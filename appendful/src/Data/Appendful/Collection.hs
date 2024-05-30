@@ -334,7 +334,7 @@ data ClientSyncProcessor ci si a m = ClientSyncProcessor
   }
   deriving (Generic)
 
-mergeSyncResponseCustom :: Monad m => ClientSyncProcessor ci si a m -> SyncResponse ci si a -> m ()
+mergeSyncResponseCustom :: (Monad m) => ClientSyncProcessor ci si a m -> SyncResponse ci si a -> m ()
 mergeSyncResponseCustom ClientSyncProcessor {..} SyncResponse {..} = do
   -- The order here matters!
   clientSyncProcessorSyncServerAdded syncResponseServerAdded
@@ -414,11 +414,11 @@ processServerSync genUuid cs sr =
     modC :: (Map si a -> Map si a) -> StateT (ServerStore si a) m ()
     modC func = modify (\(ServerStore m) -> ServerStore $ func m)
 
-diffSet :: Ord si => Map si a -> Set si -> Map si a
+diffSet :: (Ord si) => Map si a -> Set si -> Map si a
 diffSet m s = m `M.difference` toMap s
 
 toMap :: Set si -> Map si ()
 toMap = M.fromSet (const ())
 
-distinct :: Ord a => [a] -> Bool
+distinct :: (Ord a) => [a] -> Bool
 distinct ls = sort ls == S.toAscList (S.fromList ls)
