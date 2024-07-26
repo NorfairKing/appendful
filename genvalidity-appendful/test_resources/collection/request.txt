@@ -3,8 +3,8 @@
   # default: [35m{}[m
   # new items
   [37m<key>[m: 
-    [33m<number>[m # [32m8 bit unsigned integer[m
+    [33m<integer>[m # [32m8 bit unsigned integer[m
 [37mmax-synced[m: # [34moptional[m
   # largest synced value
   # [32mor null[m
-  [33m<number>[m # [32m8 bit unsigned integer[m
+  [33m<integer>[m # [32m8 bit unsigned integer[m
