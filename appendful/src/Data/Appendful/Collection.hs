@@ -342,20 +342,20 @@ mergeSyncResponseCustom ClientSyncProcessor {..} SyncResponse {..} = do
 
 -- | A record of the basic operations that are necessary to build a synchronisation processor.
 data ServerSyncProcessor ci si a m = ServerSyncProcessor
-  { serverSyncProcessorRead :: m (Map si a),
+  { -- All items with an id greater than the given id
+    serverSyncProcessorRead :: Maybe si -> m (Map si a),
     serverSyncProcessorAddItems :: Map ci a -> m (Map ci si)
   }
   deriving (Generic)
 
 processServerSyncCustom ::
   forall ci si a m.
-  (Ord si, Monad m) =>
+  (Monad m) =>
   ServerSyncProcessor ci si a m ->
   SyncRequest ci si a ->
   m (SyncResponse ci si a)
 processServerSyncCustom ServerSyncProcessor {..} SyncRequest {..} = do
-  serverItems <- serverSyncProcessorRead
-  let syncResponseServerAdded = maybe id (\ms -> M.dropWhileAntitone (<= ms)) syncRequestMaximumSynced serverItems
+  syncResponseServerAdded <- serverSyncProcessorRead syncRequestMaximumSynced
   syncResponseClientAdded <- serverSyncProcessorAddItems syncRequestAdded
   pure SyncResponse {..}
 
@@ -398,7 +398,7 @@ processServerSync genUuid cs sr =
   flip runStateT cs $
     processServerSyncCustom
       ServerSyncProcessor
-        { serverSyncProcessorRead = gets serverStoreItems,
+        { serverSyncProcessorRead = \ms -> gets (maybe id (\s -> M.dropWhileAntitone (<= s)) ms . serverStoreItems),
           serverSyncProcessorAddItems = insertMany
         }
       sr

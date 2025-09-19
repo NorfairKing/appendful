@@ -205,10 +205,8 @@ serverSyncSpec eval func = do
                   liftIO $ cAstore2 `shouldBe` cBstore2
                 _ -> liftIO $ expectationFailure "Should have found exactly one added item."
     describe "Multiple items" $ do
-      it
-        "makes no change if the sync request reflects the same local state with an empty sync response"
-        $ forAllValid
-        $ \sis -> do
+      it "makes no change if the sync request reflects the same local state with an empty sync response" $
+        forAllValid $ \sis -> do
           let cs = ServerStore sis
           (sr, cs') <-
             eval $

@@ -148,7 +148,12 @@ serverSyncProcessor ::
 serverSyncProcessor filters funcTo funcFrom =
   ServerSyncProcessor {..}
   where
-    serverSyncProcessorRead = M.fromList . map (\(Entity i record) -> (i, funcTo record)) <$> selectList filters []
+    serverSyncProcessorRead ms =
+      let idFilter = case ms of
+            Nothing -> []
+            Just s -> [persistIdField >. s]
+       in M.fromList . map (\(Entity i record) -> (i, funcTo record))
+            <$> selectList (idFilter ++ filters) []
     serverSyncProcessorAddItems = mapM $ insert . funcFrom
 
 -- | Process a sync query on the server side with a custom id.
@@ -156,11 +161,14 @@ serverProcessSyncWithCustomIdQuery ::
   ( Ord sid,
     PersistEntity record,
     PersistEntityBackend record ~ SqlBackend,
+    sid ~ Key record,
     SafeToInsert record,
     MonadIO m
   ) =>
   -- | The action to generate new identifiers
   SqlPersistT m sid ->
+  -- | The server id field
+  EntityField record sid ->
   -- | Filters to select the relevant items
   --
   -- Use these if you have multiple users and you want to sync per-user
@@ -171,18 +179,23 @@ serverProcessSyncWithCustomIdQuery ::
   (sid -> a -> record) ->
   SyncRequest ci sid a ->
   SqlPersistT m (SyncResponse ci sid a)
-serverProcessSyncWithCustomIdQuery genId filters funcTo funcFrom = processServerSyncCustom $ serverSyncProcessorWithCustomId genId filters funcTo funcFrom
+serverProcessSyncWithCustomIdQuery genId serverIdField filters funcTo funcFrom =
+  processServerSyncCustom $
+    serverSyncProcessorWithCustomId genId serverIdField filters funcTo funcFrom
 
 -- | A server sync processor that uses a custom key as the name
 serverSyncProcessorWithCustomId ::
   ( Ord sid,
     PersistEntity record,
     PersistEntityBackend record ~ SqlBackend,
+    sid ~ Key record,
     SafeToInsert record,
     MonadIO m
   ) =>
   -- | The action to generate new identifiers
   SqlPersistT m sid ->
+  -- | The server id field
+  EntityField record sid ->
   -- | Filters to select the relevant items
   --
   -- Use these if you have multiple users and you want to sync per-user
@@ -192,10 +205,15 @@ serverSyncProcessorWithCustomId ::
   -- | How to insert a _new_ record
   (sid -> a -> record) ->
   ServerSyncProcessor ci sid a (SqlPersistT m)
-serverSyncProcessorWithCustomId genId filters funcTo funcFrom =
+serverSyncProcessorWithCustomId genId serverIdField filters funcTo funcFrom =
   ServerSyncProcessor {..}
   where
-    serverSyncProcessorRead = M.fromList . map (funcTo . entityVal) <$> selectList filters []
+    serverSyncProcessorRead ms =
+      let idFilter = case ms of
+            Nothing -> []
+            Just s -> [serverIdField >. s]
+       in M.fromList . map (funcTo . entityVal)
+            <$> selectList (idFilter ++ filters) []
     serverSyncProcessorAddItems = mapM $ \a -> do
       sid <- genId
       let record = funcFrom sid a
