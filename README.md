@@ -1,5 +1,7 @@
 # Appendful
 
+[![NixCI](https://staging.nix-ci.com/badge/gh:NorfairKing:appendful)](https://staging.nix-ci.com/gh:NorfairKing:appendful)
+
 A way to synchronise items without merge conflicts and without deletions.
 
 ## Related projects
